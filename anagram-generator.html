@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anagram Generator — Find All Anagrams Instantly</title>
+<meta name="description" content="Free online anagram generator. Enter any word and instantly find all valid English anagram words.">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f7f6f2; color: #28251d; min-height: 100vh; }
+  header { background: #fff; border-bottom: 1px solid #e0ddd8; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+  .logo { font-size: 1.3rem; font-weight: 700; color: #01696f; }
+  main { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+  h1 { font-size: 2.5rem; text-align: center; margin-bottom: 8px; }
+  h1 em { color: #01696f; font-style: italic; }
+  .subtitle { text-align: center; color: #7a7974; margin-bottom: 40px; }
+  .card { background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,.08); margin-bottom: 32px; }
+  .input-row { display: flex; gap: 12px; }
+  input[type=text] { flex: 1; padding: 14px 20px; font-size: 1.2rem; border: 2px solid #e0ddd8; border-radius: 10px; outline: none; transition: border .2s; }
+  input[type=text]:focus { border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,.15); }
+  .btn { padding: 14px 32px; background: #01696f; color: #fff; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background .2s; }
+  .btn:hover { background: #0c4e54; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+  .filter-label { font-size: .85rem; color: #7a7974; }
+  .chip { padding: 4px 14px; border-radius: 999px; border: 1.5px solid #e0ddd8; background: #f7f6f2; font-size: .8rem; font-weight: 600; cursor: pointer; color: #7a7974; transition: all .15s; }
+  .chip.active, .chip:hover { border-color: #01696f; background: #e8f4f4; color: #01696f; }
+  .stats { display: flex; gap: 12px; margin-bottom: 20px; }
+  .stat { background: #e8f4f4; border-radius: 999px; padding: 6px 16px; font-size: .85rem; }
+  .stat strong { color: #01696f; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .word-card { background: #f7f6f2; border: 1px solid #e0ddd8; border-radius: 10px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all .15s; }
+  .word-card:hover { border-color: #01696f; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.08); transform: translateY(-1px); }
+  .wlen { font-size: .7rem; background: #e0ddd8; border-radius: 999px; padding: 1px 7px; color: #7a7974; }
+  .empty { text-align: center; padding: 64px 0; color: #7a7974; }
+  .empty .icon { font-size: 3rem; margin-bottom: 16px; opacity: .4; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #28251d; color: #f7f6f2; padding: 8px 24px; border-radius: 999px; font-size: .9rem; opacity: 0; transition: all .25s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media(max-width:600px){ .input-row{flex-direction:column} .btn{width:100%} }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🔤 AnagramGen</div>
+</header>
+<main>
+  <h1>Find every <em>anagram</em></h1>
+  <p class="subtitle">Enter any English word — we'll find all valid anagram words instantly.</p>
+
+  <div class="card">
+    <div class="input-row">
+      <input type="text" id="wordInput" maxlength="10" placeholder="e.g. listen, earth, race…" autocomplete="off" spellcheck="false">
+      <button class="btn" onclick="generate()">Find Anagrams</button>
+    </div>
+    <div class="filters">
+      <span class="filter-label">Filter:</span>
+      <div id="chips"></div>
+    </div>
+  </div>
+
+  <div id="output"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script src="wordmap.js"></script>
+<script>
+const input = document.getElementById('wordInput');
+input.addEventListener('keydown', e => e.key === 'Enter' && generate());
+
+let allResults = [], activeLen = 'all';
+
+function generate() {
+  const word = input.value.trim().toLowerCase().replace(/[^a-z]/g,'');
+  if (!word || word.length < 2) { showEmpty('Please enter at least 2 letters.'); return; }
+  const key = [...word].sort().join('');
+  allResults = (WORD_MAP[key] || []).filter(w => w !== word).sort((a,b) => b.length-a.length || a.localeCompare(b));
+  buildChips();
+  renderResults('all');
+}
+
+function buildChips() {
+  const lengths = [...new Set(allResults.map(w => w.length))].sort((a,b)=>b-a);
+  const chips = document.getElementById('chips');
+  chips.innerHTML = '<button class="chip active" data-l="all" onclick="filterBy(\'all\')">All ('+allResults.length+')</button>';
+  lengths.forEach(l => {
+    const count = allResults.filter(w=>w.length===l).length;
+    chips.innerHTML += `<button class="chip" data-l="${l}" onclick="filterBy('${l}')">${l} letters (${count})</button>`;
+  });
+  activeLen = 'all';
+}
+
+function filterBy(len) {
+  activeLen = len;
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.l === len));
+  renderResults(len);
+}
+
+function renderResults(len) {
+  const word = input.value.trim().toLowerCase();
+  const list = len === 'all' ? allResults : allResults.filter(w => w.length === parseInt(len));
+  const out = document.getElementById('output');
+
+  if (allResults.length === 0) { showEmpty('No anagrams found for "' + word + '". Try another word!'); return; }
+  if (list.length === 0) { out.innerHTML = '<div class="empty"><div class="icon">🔍</div><p>No '+(len)+'-letter anagrams. Try "All".</p></div>'; return; }
+
+  out.innerHTML = `
+    <div class="stats">
+      <div class="stat">Found <strong>${list.length}</strong> anagram${list.length!==1?'s':''}</div>
+      <div class="stat">Longest: <strong>${list[0]}</strong></div>
+    </div>
+    <div class="grid">${list.map(w=>`<div class="word-card" onclick="copy('${w}')"><span>${w}</span><span class="wlen">${w.length}</span></div>`).join('')}</div>`;
+}
+
+function showEmpty(msg) {
+  document.getElementById('output').innerHTML = `<div class="empty"><div class="icon">🔤</div><p>${msg}</p></div>`;
+}
+
+function copy(w) {
+  navigator.clipboard.writeText(w).catch(()=>{});
+  const t = document.getElementById('toast');
+  t.textContent = '"' + w + '" copied!';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+</script>
+</body>
+</html>
